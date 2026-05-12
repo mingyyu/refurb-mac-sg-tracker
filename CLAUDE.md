@@ -4,18 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Monitors Apple's refurbished Mac store for Mac Mini availability. A GitHub Action runs every 15 minutes, scrapes product data via JSON-LD extraction, sends Slack notifications when Mac Minis are found, and updates a historical pricing database. A dashboard hosted on GitHub Pages visualizes the data.
+Monitors Apple's refurbished Mac store (Singapore) for Mac Mini availability. A GitHub Action runs every 15 minutes, scrapes product data via JSON-LD extraction, sends Telegram notifications when Mac Minis are found, and updates a historical pricing database. A dashboard hosted on GitHub Pages visualizes the data.
 
 ## Commands
 
-- `bun run check.ts` — Run the Slack monitor locally (omit `SLACK_WEBHOOK_URL` to dry-run)
+- `bun run check.ts` — Run the Telegram monitor locally (omit `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` to dry-run)
 - `bun run update-data.ts` — Scrape current listings and merge into `data/refurb-history.json`
 
 ## Architecture
 
-**Shared scraping library** (`lib/scrape.ts`): Fetches Apple's refurbished Mac Mini page, extracts JSON-LD products, and provides parsing utilities. Both scripts import from this module.
+**Shared scraping library** (`lib/scrape.ts`): Fetches Apple's refurbished Mac page (Singapore), extracts JSON-LD products, and provides parsing utilities. Both scripts import from this module.
 
-**Slack monitor** (`check.ts`): Imports shared scraping, filters to models meeting alert criteria (M4+ chip, 16GB+ RAM, 512GB+ storage), formats matching products into a Slack message, and posts via webhook.
+**Telegram monitor** (`check.ts`): Imports shared scraping, filters to models meeting alert criteria (M4+ chip, 16GB+ RAM, 512GB+ storage), formats matching products into an HTML message, and sends via Telegram Bot API.
 
 **Data updater** (`update-data.ts`): Imports shared scraping, parses chip/RAM/storage/price from product listings, and merges into the historical JSON. Each product tracks a `sightings` array of `{date, price}` entries (deduped per day) plus `firstSeen`/`lastSeen` fields.
 
@@ -28,4 +28,5 @@ Monitors Apple's refurbished Mac store for Mac Mini availability. A GitHub Actio
 ## Environment
 
 - **Runtime:** Bun (no Node, no npm)
-- **`SLACK_WEBHOOK_URL`:** GitHub Actions secret; when unset locally, the script logs the message instead of posting
+- **`TELEGRAM_BOT_TOKEN`:** GitHub Actions secret; when unset locally, the script logs the message instead of sending
+- **`TELEGRAM_CHAT_ID`:** GitHub Actions secret; the target chat/channel for notifications

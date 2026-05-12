@@ -1,4 +1,4 @@
-export const MINI_URL = "https://www.apple.com/shop/refurbished/mac/mac-mini";
+export const MINI_URL = "https://www.apple.com/sg/shop/refurbished/mac";
 
 export interface Offer {
   price?: string | number;

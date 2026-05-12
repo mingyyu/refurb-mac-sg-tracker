@@ -28,46 +28,50 @@ function meetsAlertCriteria(product: Product): boolean {
   return parseStorageGB(specs.storage) >= 512;
 }
 
-function buildSlackMessage(minis: Product[]): { text: string } {
+function escapeHtml(s: string): string {
+  return (s || "").toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function buildTelegramMessage(minis: Product[]): string {
   const lines = minis.map((p) => {
     const specs = parseSpecsString(p.description);
-    const specLine = specs ? `\n    ${specs}` : "";
-    return `• *${formatPrice(p)}* — ${p.name}${specLine}`;
+    const specLine = specs ? `\n    ${escapeHtml(specs)}` : "";
+    return `• <b>${escapeHtml(formatPrice(p))}</b> — ${escapeHtml(p.name || "")}${specLine}`;
   });
-  const text = [
-    `🖥️ *${minis.length} Mac Mini${minis.length > 1 ? "s" : ""} spotted on Apple Refurbished!*`,
+  return [
+    `🖥️ <b>${minis.length} Mac Mini${minis.length > 1 ? "s" : ""} spotted on Apple Refurbished (SG)!</b>`,
     "",
     ...lines,
     "",
-    `👉 ${MINI_URL}`,
+    `👉 ${escapeHtml(MINI_URL)}`,
   ].join("\n");
-
-  return { text };
 }
 
-async function notifySlack(message: { text: string }): Promise<void> {
-  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
-  if (!webhookUrl) {
-    console.log("SLACK_WEBHOOK_URL not set — skipping Slack notification");
-    console.log("Message that would be sent:", JSON.stringify(message, null, 2));
+async function notifyTelegram(text: string): Promise<void> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) {
+    console.log("TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set — skipping Telegram notification");
+    console.log("Message that would be sent:\n", text);
     return;
   }
 
-  const res = await fetch(webhookUrl, {
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(message),
+    body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
   });
 
   if (!res.ok) {
-    throw new Error(`Slack webhook failed: ${res.status} ${await res.text()}`);
+    throw new Error(`Telegram API failed: ${res.status} ${await res.text()}`);
   }
 
-  console.log("Slack notification sent successfully");
+  console.log("Telegram notification sent successfully");
 }
 
 async function main() {
-  console.log("Fetching Apple refurbished Mac Mini page...");
+  console.log("Fetching Apple refurbished Mac page (SG)...");
   const html = await fetchApplePage(MINI_URL);
 
   const allMinis = extractMacMiniProducts(html);
@@ -88,8 +92,8 @@ async function main() {
     console.log(`  → ${mini.name} — ${formatPrice(mini)}`);
   }
 
-  const message = buildSlackMessage(minis);
-  await notifySlack(message);
+  const message = buildTelegramMessage(minis);
+  await notifyTelegram(message);
 }
 
 main().catch((err) => {
